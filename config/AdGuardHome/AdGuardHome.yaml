@@ -65,6 +65,8 @@ dns:
   use_http3_upstreams: false
   serve_plain_dns: true
   hostsfile_enabled: true
+  pending_requests:
+    enabled: true
 tls:
   enabled: false
   server_name: ""
@@ -152,6 +154,7 @@ filtering:
   rewrites: []
   safe_fs_patterns:
     - /opt/AdGuardHome/userfilters/*
+    - /config/userfilters/*
   safebrowsing_cache_size: 1048576
   safesearch_cache_size: 1048576
   parental_cache_size: 1048576

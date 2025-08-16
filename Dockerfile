@@ -13,16 +13,12 @@ RUN apk update && apk upgrade && \
     wget -O /tmp/AdGuardHome.tar.gz "https://github.com/AdguardTeam/AdGuardHome/releases/download/${LATEST_VERSION}/AdGuardHome_linux_amd64.tar.gz" && \
     tar -xzf /tmp/AdGuardHome.tar.gz -C /opt && rm /tmp/AdGuardHome.tar.gz
 
-# Create necessary directories
-RUN mkdir -p /opt/adguardhome/work /config_default && \
-    chmod 777 /config_default
-
 # Copy configuration files from local source
 COPY config/ /config_default
 
-# Copy initialization script and make it executable
-COPY init-config.sh /usr/local/bin/init-config.sh
-RUN chmod +x /usr/local/bin/init-config.sh
+# Copy the new entrypoint script and make it executable
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Expose required ports for various services
 # 53 : TCP, UDP : DNS
@@ -41,8 +37,5 @@ EXPOSE 53/tcp 53/udp 67/udp 68/udp 80/tcp 443/tcp 443/udp \
 # Set configuration environment variable
 ENV XDG_CONFIG_HOME=/config
 
-# Start services and ensure the last process remains in the foreground
-CMD ["/bin/sh", "-c", "/usr/local/bin/init-config.sh && \
-    redis-server /config/redis/redis.conf & \
-    unbound -d -c /config/unbound/unbound.conf & \
-    exec /opt/AdGuardHome/AdGuardHome -c /config/AdGuardHome/AdGuardHome.yaml -w /config"]
+# Use the new entrypoint script as the container entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
