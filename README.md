@@ -39,6 +39,7 @@ A Docker container combining [AdGuard Home](https://github.com/AdguardTeam/AdGua
 | `/AdGuardHome`  | AdGuard Home config (`AdGuardHome.yaml`) |
 | `/unbound`      | Unbound configuration files         |
 | `/data`         | Working directory for AdGuard Home  |
+| `/userfilters` | **Your own custom filter files (.txt, .list, etc.)** |
 
 ---
 
@@ -50,6 +51,32 @@ Currently, **Cloudflare DNS** is used.
 - You can modify this behavior in the `forward-queries.conf` file.
 - Other DNS providers are pre-defined and can be customized or added.
 - To enable **full recursive resolution**, simply **delete** the `forward-queries.conf` file.
+
+---
+
+### 📂 Custom User Filters
+
+You can now add your own filter blocklist files to the container by placing them in the `/config/userfilters/` folder.
+**Important:**  
+To enable AdGuard Home to read your custom filter files, you must ensure that your configuration file (`AdGuardHome.yaml`) contains:
+
+```
+safe_fs_patterns:
+   - /config/userfilters/*
+```
+
+You have two options:
+
+- **Option 1: Manual update**  
+  Edit `AdGuardHome.yaml` (found in `/mnt/user/appdata/adguard-unbound-redis/AdGuardHome/AdGuardHome.yaml`) and add or update the `safe_fs_patterns` section as shown above. Then restart the container.
+
+- **Option 2: Auto-generate fresh config**  
+  Delete (or move) your existing `AdGuardHome.yaml` config file and restart the container.  
+  The container will create a new config file with the correct `safe_fs_patterns` entry by default.  
+  _**Warning:** This resets all your AdGuard Home settings!_
+
+**Afterwards:**  
+Add your local blocklist(s) in AdGuard Home’s web UI (Filters → DNS blocklists) by specifying the file path, for example: `/config/userfilters/myblocklist.txt`.
 
 ---
 
