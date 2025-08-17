@@ -57,6 +57,7 @@ Currently, **Cloudflare DNS** is used.
 ### 📂 Custom User Filters
 
 You can now add your own filter blocklist files to the container by placing them in the `/config/userfilters/` folder.
+
 **Important:**  
 To enable AdGuard Home to read your custom filter files, you must ensure that your configuration file (`AdGuardHome.yaml`) contains:
 
