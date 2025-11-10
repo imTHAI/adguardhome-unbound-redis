@@ -1,4 +1,5 @@
 FROM alpine:3.22 AS base
+ARG TARGETARCH
 
 # Install Redis, Unbound, AdGuard Home, and necessary dependencies
 RUN apk update && apk upgrade && \
@@ -8,9 +9,9 @@ RUN apk update && apk upgrade && \
     mkdir unbound-latest && tar -xzf unbound-latest.tar.gz --strip-components=1 -C unbound-latest && \
     (cd unbound-latest && \
     ./configure --with-libhiredis --with-libexpat=/usr --with-libevent --enable-cachedb --disable-flto --disable-shared --disable-rpath --with-pthreads && \
-    make && make install) && rm -rf unbound-latest* && \
+    make -j8 && make install) && rm -rf unbound-latest* && \
     LATEST_VERSION="$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | grep '\"tag_name\"' | sed -E 's/.*\"([^\"]+)\".*/\1/')" && \
-    wget -O /tmp/AdGuardHome.tar.gz "https://github.com/AdguardTeam/AdGuardHome/releases/download/${LATEST_VERSION}/AdGuardHome_linux_amd64.tar.gz" && \
+    wget -O /tmp/AdGuardHome.tar.gz "https://github.com/AdguardTeam/AdGuardHome/releases/download/${LATEST_VERSION}/AdGuardHome_linux_${TARGETARCH}.tar.gz" && \
     tar -xzf /tmp/AdGuardHome.tar.gz -C /opt && rm /tmp/AdGuardHome.tar.gz
 
 # Copy configuration files from local source
