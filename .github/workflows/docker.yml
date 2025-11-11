@@ -54,13 +54,11 @@ jobs:
           # Determine the specific tag from the trigger payload (script) or manual input
           TAG_NAME: ${{ github.event.client_payload.tag_name || github.event.inputs.tag }}
 
-          # --- MODIFICATION START ---
           # Pass the detected tag_name into the Dockerfile as a build argument.
           # This ensures the Dockerfile downloads the exact version (AGH_VERSION)
           # that was detected by the monitoring script.
           build-args: |
             AGH_VERSION=${{ env.TAG_NAME }}
-          # --- MODIFICATION END ---
 
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:${{ env.TAG_NAME }}
