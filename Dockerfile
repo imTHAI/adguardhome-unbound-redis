@@ -1,6 +1,12 @@
 FROM alpine:3.22 AS base
 ARG TARGETARCH
 
+# Define a build-time argument for the AdGuardHome version.
+# This allows the CI workflow to pass in the exact version
+# detected by the monitor, making the build deterministic.
+ARG AGH_VERSION
+
+
 # Install Redis, Unbound, AdGuard Home, and necessary dependencies
 RUN apk update && apk upgrade && \
     apk add --no-cache redis unbound busybox-suid curl build-base openssl-dev \
@@ -10,8 +16,15 @@ RUN apk update && apk upgrade && \
     (cd unbound-latest && \
     ./configure --with-libhiredis --with-libexpat=/usr --with-libevent --enable-cachedb --disable-flto --disable-shared --disable-rpath --with-pthreads && \
     make -j8 && make install) && rm -rf unbound-latest* && \
-    LATEST_VERSION="$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | grep '\"tag_name\"' | sed -E 's/.*\"([^\"]+)\".*/\1/')" && \
-    wget -O /tmp/AdGuardHome.tar.gz "https://github.com/AdguardTeam/AdGuardHome/releases/download/${LATEST_VERSION}/AdGuardHome_linux_${TARGETARCH}.tar.gz" && \
+    
+    # REMOVED: The dynamic 'curl' to find the latest version at build time.
+    # This prevents a race condition where the tag and content could mismatch.
+    # LATEST_VERSION="$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | ...)" && \
+    
+    # MODIFIED: Use the AGH_VERSION build-arg passed from the CI job
+    # instead of the dynamic LATEST_VERSION variable.
+    wget -O /tmp/AdGuardHome.tar.gz "https://github.com/AdguardTeam/AdGuardHome/releases/download/${AGH_VERSION}/AdGuardHome_linux_${TARGETARCH}.tar.gz" && \
+
     tar -xzf /tmp/AdGuardHome.tar.gz -C /opt && rm /tmp/AdGuardHome.tar.gz
 
 # Copy configuration files from local source
