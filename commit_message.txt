@@ -1,0 +1,26 @@
+feat: Improve startup robustness and enable recursive DNSSEC by default
+
+This commit implements major structural changes in the entrypoint script and Dockerfile
+to ensure reliable startup and secure DNSSEC validation across all environments.
+
+Key changes:
+
+1. **Startup Reliability (DNSSEC Anchor Fix):**
+
+   * Added an 'unbound-anchor retry loop' in 'entrypoint.sh' to bypass the network race condition that caused the first startup to fail ('set -e').
+
+   * Corrected 'unbound-anchor' syntax to use a temporary 'resolv.conf' file, ensuring compatibility with the 'sh' shell.
+
+2. **Security and Permissions (DNSSEC Write Access):**
+
+   * The 'root.key' file is moved from '/config/unbound' (persistent volume owned by root) to an internal container directory, '/etc/unbound/var', owned by the 'unbound' user.
+
+   * This resolves the critical permissions conflict ('Permission denied') that prevented Unbound from updating the trust anchor (necessary for KSK Rollover) after dropping 'root' privileges.
+
+   * 'netcat-openbsd' was added to the Dockerfile to allow for service readiness checks.
+
+3. **Configuration Management (Existing Users):**
+
+   * The copying logic in 'entrypoint.sh' has been revised to use a robust method: copy everything for new users, but explicitly add only **new configuration files** ('dnssec.conf') for existing users.
+
+   * This ensures that advanced users who intentionally delete files (like 'forward-queries.conf' to switch to recursive mode) do not have their modifications overwritten during container updates.

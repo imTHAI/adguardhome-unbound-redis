@@ -22,7 +22,7 @@ if [ -z "$(ls -A /config/AdGuardHome 2>/dev/null)" ]; then
   cp -r /config_default/AdGuardHome/* /config/AdGuardHome/
 fi
 
-# # Copy unbound configuration 
+# # Copy unbound configuration
 # 1. Check for NEW users (main config file is missing)
 if [ ! -f "/config/unbound/unbound.conf" ]; then
   echo "Initializing default Unbound configuration (new user)..."
@@ -32,7 +32,7 @@ if [ ! -f "/config/unbound/unbound.conf" ]; then
 # 2. Handle EXISTING users (main config exists)
 else
   echo "Existing Unbound configuration found. Checking for upgrades..."
-  
+
   NEW_FILES_STRING="dnssec.conf"
   # Add other future default files here, e.g.:
   # NEW_FILES_STRING="dnssec.conf new-privacy.conf"
@@ -41,7 +41,7 @@ else
   for file_name in $NEW_FILES_STRING; do
     src_file="/config_default/unbound/unbound.conf.d/$file_name"
     dest_file="/config/unbound/unbound.conf.d/$file_name"
-    
+
     # Only copy the file if the source exists and destination does not
     if [ -f "$src_file" ] && [ ! -f "$dest_file" ]; then
       echo "Adding new default config file: $file_name..."
@@ -83,8 +83,8 @@ if [ ! -f "$ROOT_KEY_FILE" ]; then
 
   # Final check, if it still failed after retries, exit
   if [ ! -f "$ROOT_KEY_FILE" ]; then
-     echo "FATAL: Could not initialize DNSSEC root anchor after $MAX_ANCHOR_RETRIES retries. Exiting."
-     exit 1
+      echo "FATAL: Could not initialize DNSSEC root anchor after $MAX_ANCHOR_RETRIES retries. Exiting."
+      exit 1
   fi
   # --- End of fix ---
 
@@ -93,12 +93,11 @@ else
   echo "DNSSEC root trust anchor already exists."
 fi
 # --- 5. Start Services ---
-echo "Starting Redis server..."
-redis-server /config/redis/redis.conf &
+echo "Starting Redis server in foreground..."
+redis-server /config/redis/redis.conf --daemonize no &
 
 echo "Starting Unbound DNS server..."
 unbound -d -c /config/unbound/unbound.conf &
 
 echo "Starting AdGuardHome..."
-# Use 'exec' to ensure AdGuardHome is PID 1 and receives signals correctly.
 exec /opt/AdGuardHome/AdGuardHome -c /config/AdGuardHome/AdGuardHome.yaml -w /config

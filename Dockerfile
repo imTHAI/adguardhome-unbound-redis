@@ -6,8 +6,9 @@ ARG AGH_VERSION
 
 # Install Redis, Unbound, AdGuard Home, and necessary dependencies.
 # netcat-openbsd is added to enable the startup check in entrypoint.sh.
+# --> MODIFICATION : Ajout de "tini"
 RUN apk update && apk upgrade && \
-    apk add --no-cache redis unbound busybox-suid curl build-base openssl-dev \
+    apk add --no-cache tini redis unbound busybox-suid curl build-base openssl-dev \
     libexpat expat-dev hiredis-dev libcap-dev libevent-dev perl netcat-openbsd && \
     \
     # Compile Unbound with cachedb support
@@ -41,4 +42,4 @@ EXPOSE 53/tcp 53/udp 67/udp 68/udp 80/tcp 443/tcp 443/udp \
 ENV XDG_CONFIG_HOME=/config
 
 # Use the new entrypoint script as the container entrypoint
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]
