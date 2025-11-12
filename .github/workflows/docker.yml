@@ -47,8 +47,7 @@ jobs:
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v5
         
-        # --- CORRECTION ---
-        # Définit la variable TAG_VALUE pour cette étape
+        # Define the tag value
         env:
           TAG_VALUE: ${{ github.event.client_payload.tag_name || github.event.inputs.tag }}
         
@@ -58,12 +57,12 @@ jobs:
           push: true
           
           # --- CORRECTION ---
-          # 1. Ajout de build-args pour passer AGH_VERSION au Dockerfile
+          # 1. Add build-args
           build-args: |
             AGH_VERSION=${{ env.TAG_VALUE }}
             
           # --- CORRECTION ---
-          # 2. Utilisation de la variable env.TAG_VALUE dans les tags
+          # 2. To use env.TAG_VALUE in the tags
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:${{ env.TAG_VALUE }}
             ghcr.io/imthai/adguardhome-unbound-redis:${{ env.TAG_VALUE }}
