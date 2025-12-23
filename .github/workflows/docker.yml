@@ -1,7 +1,7 @@
 name: Build and Push Multi-Arch Docker Image
 
 on:
-  # 1. Manual trigger (requested)
+  # 1. Manual trigger
   workflow_dispatch: 
     inputs:
       tag:
@@ -9,9 +9,9 @@ on:
         required: true
         default: 'latest'
 
-  # 2. External API trigger (via repository_dispatch)
+  # 2. External API trigger
   repository_dispatch:
-    types: [new_adguardhome_release] # Event name sent by the GitHub monitoring script
+    types: [new_adguardhome_release]
 
 jobs:
   build:
@@ -21,12 +21,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      # Setup for multi-arch build
       - name: Set up QEMU (for ARM64 emulation)
-        uses: docker/setup-qemu-action@v3
+        uses: actions/docker-setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: actions/docker-setup-buildx-action@v3
+
+      # --- AJOUT CRUCIAL POUR LE HARDENED ---
+      - name: Login to dhi.io (Hardened Images)
+        uses: docker/login-action@v3
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       # Login to Docker Hub
       - name: Login to Docker Hub
@@ -47,22 +54,21 @@ jobs:
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v5
         
-        # Define the tag value
+        # On définit la valeur du TAG pour l'utiliser dans les étapes suivantes
         env:
-          TAG_VALUE: ${{ github.event.client_payload.tag_name || github.event.inputs.tag }}
+          TAG_VALUE: ${{ github.event.client_payload.tag_name || github.event.inputs.tag || 'latest' }}
         
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          # Utilisation du cache GHA pour la vitesse
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           
-          # --- CORRECTION ---
-          # 1. Add build-args
           build-args: |
             AGH_VERSION=${{ env.TAG_VALUE }}
             
-          # --- CORRECTION ---
-          # 2. To use env.TAG_VALUE in the tags
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:${{ env.TAG_VALUE }}
             ghcr.io/imthai/adguardhome-unbound-redis:${{ env.TAG_VALUE }}
