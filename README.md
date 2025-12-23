@@ -142,7 +142,3 @@ Add your local blocklist(s) in AdGuard Home’s web UI (Filters → DNS blocklis
 ---
 
 Enjoy faster, smarter, and more private DNS with this all-in-one Docker solution! 🛡️⚡
-
----
-
-Enjoy faster, smarter, and more private DNS with this all-in-one Docker solution! 🛡️⚡
