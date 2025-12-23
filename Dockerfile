@@ -53,7 +53,8 @@ RUN wget -O /build/AdGuardHome.tar.gz "https://github.com/AdguardTeam/AdGuardHom
 #############################################
 # Stage 2: Runtime
 #############################################
-FROM alpine:${ALPINE_VERSION}
+#FROM alpine:${ALPINE_VERSION}
+FROM dhi.io/alpine-base:3.22-alpine3.22-dev
 
 # Install ONLY the runtime libraries (NO build-base, NO -dev packages)
 RUN apk add --no-cache \
