@@ -21,13 +21,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      # CORRECTION: docker/ au lieu de actions/
       - name: Set up QEMU (for ARM64 emulation)
-        uses: actions/docker-setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v3
 
+      # CORRECTION: docker/ au lieu de actions/
       - name: Set up Docker Buildx
-        uses: actions/docker-setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3
 
-      # --- AJOUT CRUCIAL POUR LE HARDENED ---
+      # Login to dhi.io (Hardened Images) - Utilise dhi.io pour corriger l'erreur 401
       - name: Login to dhi.io (Hardened Images)
         uses: docker/login-action@v3
         with:
@@ -54,7 +56,6 @@ jobs:
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v5
         
-        # On définit la valeur du TAG pour l'utiliser dans les étapes suivantes
         env:
           TAG_VALUE: ${{ github.event.client_payload.tag_name || github.event.inputs.tag || 'latest' }}
         
@@ -62,7 +63,6 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          # Utilisation du cache GHA pour la vitesse
           cache-from: type=gha
           cache-to: type=gha,mode=max
           
