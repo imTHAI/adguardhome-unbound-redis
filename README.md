@@ -18,9 +18,16 @@ This image is multi-architecture and provides native support for both amd64 (PCs
 
 ### 🧠 Benefits of Using Redis:
 - **In-Memory Speed**: Redis caches DNS results in memory, offering near-instant retrieval.
-- **Persistent Cache (Warm-up)**: Thanks to optimized RDB snapshots, your DNS cache survives container restarts, maintaining low latency immediately after a reboot [Inference].
-- **Smart Eviction**: Uses the `allkeys-lru` policy with a 128MB limit to ensure the most frequent queries stay in memory.
+- **Improved Throughput**: Offloads repetitive DNS requests from upstream servers.
 - **Reduced Load**: Minimizes the number of external DNS queries.
+- **Reliable Caching**: Maintains fast access even under heavy load.
+
+### 🛡️ Security: Docker Hardened Image (DHI)
+This image is built upon **Docker Hardened Images (DHI)**, providing a higher level of security compared to standard base images:
+- **Minimal Surface Area**: Only essential packages are included, significantly lowering the potential attack surface.
+- **Zero Known Vulnerabilities**: Optimized to maintain a 0-CVE status for critical and high-priority vulnerabilities.
+- **Supply Chain Security**: Digitally signed and verified base images with full SBOM (Software Bill of Materials) support.
+- **Immutable & Locked**: The package manager and external repositories are locked after build to prevent unauthorized software installation at runtime.
 
 ---
 
