@@ -18,9 +18,24 @@ This image is multi-architecture and provides native support for both amd64 (PCs
 
 ### 🧠 Benefits of Using Redis:
 - **In-Memory Speed**: Redis caches DNS results in memory, offering near-instant retrieval.
-- **Improved Throughput**: Offloads repetitive DNS requests from upstream servers.
+- **Persistent Cache (Warm-up)**: Thanks to optimized RDB snapshots, your DNS cache survives container restarts, maintaining low latency immediately after a reboot [Inference].
+- **Smart Eviction**: Uses the `allkeys-lru` policy with a 128MB limit to ensure the most frequent queries stay in memory.
 - **Reduced Load**: Minimizes the number of external DNS queries.
-- **Reliable Caching**: Maintains fast access even under heavy load.
+
+---
+
+## ⚡ Performance Tuning
+
+This container is pre-optimized for high-throughput and low-latency DNS resolution:
+
+- **Unbound Slabs**: Aligned to `4` to match the `num-threads` setting, significantly reducing internal lock contention.
+- **Redis RAM Optimization**: Increased to `128MB` with `lazy-freeing` enabled, allowing non-blocking background deletions for smoother performance.
+- **Unix Socket Communication**: Communication between Unbound and Redis occurs via a Unix socket (`/tmp/redis.sock`), bypassing the TCP network stack overhead.
+
+> [!TIP]
+> **Understanding Latency**: Average response times around 30-40ms are normal for a recursive/forwarding setup. This average balances near-instant cache hits (<1ms) and the initial recursive lookups required to populate the cache [Inference].
+
+---
 
 ## 🚀 Quick Start (docker-compose)
 
@@ -48,9 +63,9 @@ services:
 ## ⚙️ Configuration and Paths
 
 ### 🔷 Note for Unraid Users
-This container is tailored to work well with Unraid.
-1.  When adding the container, map the **Container Path** `/config` to your desired **Host Path** in `appdata`, e.g., `/mnt/user/appdata/adguard-unbound-redis/`
-2.  It is highly recommended to assign a **dedicated IP** (e.g., `br0.100`) to the container, as port `53` is often occupied by Unraid/Docker.
+This container is tailored to work well with Unraid:
+1. When adding the container, map the **Container Path** `/config` to your desired **Host Path** in `appdata`, e.g., `/mnt/user/appdata/adguard-unbound-redis/`.
+2. It is highly recommended to assign a **dedicated IP** (e.g., `br0.100`) to the container, as port `53` is often occupied by Unraid/Docker.
 
 ### 📂 File Structure
 
@@ -61,8 +76,7 @@ All configuration is persisted in the volume you map to `/config`. After the fir
 | `./AdGuardHome/` | `AdGuardHome.yaml` config and working data. |
 | `./unbound/` | Configuration files for Unbound. |
 | `./redis/` | Configuration file for Redis. |
-| `./userfilters/` | **Place your custom filter files here.** |
-| `./data/` | AdGuard Home working directory (logs, stats). |
+| `./userfilters/` | **Place your custom filter files here**. |
 
 **Default Settings:**
 - **AdGuard Home Web UI**: `http://<your-ip>:3000`
@@ -72,8 +86,7 @@ All configuration is persisted in the volume you map to `/config`. After the fir
 
 ## 🌐 DNS Configuration
 
-By default, Unbound is set to forward all DNS requests to **public resolvers**.
-Currently, **Cloudflare DNS** is used.
+By default, Unbound is set to forward all DNS requests to **public resolvers**. Currently, **Cloudflare DNS** is used.
 
 - You can modify this behavior in the `./unbound/forward-queries.conf` file.
 - Other DNS providers are pre-defined and can be customized or added.
@@ -83,10 +96,9 @@ Currently, **Cloudflare DNS** is used.
 
 ### 📂 Custom User Filters
 
-You can now add your own filter blocklist files to the container by placing them in the `./userfilters/` folder.
+You can add your own filter blocklist files to the container by placing them in the `/config/userfilters/` folder.
 
-**Important:**
-To enable AdGuard Home to read your custom filter files, you must ensure that your configuration file (`./AdGuardHome/AdGuardHome.yaml`) contains:
+**Important:** To enable AdGuard Home to read your custom filter files, you must ensure that your configuration file (`AdGuardHome.yaml`) contains:
 
 ```yaml
 safe_fs_patterns:
@@ -114,7 +126,7 @@ You have two options:
 - **Option 2: Auto-generate fresh config**
   Delete (or move) your existing `AdGuardHome.yaml` config file and restart the container.
   The container will create a new config file with the correct `safe_fs_patterns` entry by default.
-  ⚠️ *Warning: This resets all your AdGuard Home settings!*
+  ⚠️ *Warning: This resets all your AdGuard Home settings!* 
 
 **Afterwards:**
 Add your local blocklist(s) in AdGuard Home’s web UI (Filters → DNS blocklists) by specifying the file path, for example: `/config/userfilters/myblocklist.txt`.
@@ -123,9 +135,13 @@ Add your local blocklist(s) in AdGuard Home’s web UI (Filters → DNS blocklis
 
 ## 🚫 Blocklists Enabled by Default
 
-- [AdGuard DNS Filter](https://github.com/AdguardTeam/AdguardSDNSFilter)
-- [HaGeZi's Threat Intelligence Feeds](https://github.com/hagezi/dns-blocklists?tab=readme-ov-file#tif)
-- [HaGeZi's Multi PRO Blocklist](https://github.com/hagezi/dns-blocklists?tab=readme-ov-file#pro)
+- [AdGuard DNS Filter](https://github.com/AdguardTeam/AdguardSDNSFilter) 
+- [HaGeZi's Threat Intelligence Feeds](https://github.com/hagezi/dns-blocklists?tab=readme-ov-file#tif) 
+- [HaGeZi's Multi PRO Blocklist](https://github.com/hagezi/dns-blocklists?tab=readme-ov-file#pro) 
+
+---
+
+Enjoy faster, smarter, and more private DNS with this all-in-one Docker solution! 🛡️⚡
 
 ---
 
