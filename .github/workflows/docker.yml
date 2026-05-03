@@ -1,74 +1,102 @@
 name: Build and Push Multi-Arch Docker Image
 
 on:
-  # 1. Manual trigger
+  # 1. Manual trigger always available
   workflow_dispatch: 
     inputs:
       tag:
-        description: 'Tag/Version to build (e.g., v0.107.70)'
-        required: true
-        default: 'latest'
+        description: 'Tag/Version to build (e.g., v0.107.74)'
+        required: false
+        default: ''
 
-  # 2. External API trigger
-  repository_dispatch:
-    types: [new_adguardhome_release]
+  # 2. The NAS replacement: automatic check every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'
 
 jobs:
-  build:
+  check-and-build:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      # CORRECTION: docker/ au lieu de actions/
+
+      # --- STEP A: Version detection ---
+      - name: Get latest AdGuardHome release
+        id: get_version
+        run: |
+          # If triggered manually with a tag, use it. Otherwise, query the GitHub API
+          if [ "${{ github.event.inputs.tag }}" != "" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "Using manual tag: ${{ github.event.inputs.tag }}"
+          else
+            # Fetch the stable release (GitHub natively excludes pre-releases/betas here)
+            LATEST_TAG=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
+            echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+            echo "Latest upstream tag is: $LATEST_TAG"
+          fi
+
+      # --- STEP B: State verification (does the image already exist?) ---
+      - name: Check if image already exists on Docker Hub
+        id: check_image
+        run: |
+          # Ask Docker Hub if this version has already been pushed
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis/tags/${{ steps.get_version.outputs.tag }})
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "Image ${{ steps.get_version.outputs.tag }} already exists. Canceling build."
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "New version detected! Starting build."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
+      # --- STEP C: Environment preparation (Only if build is necessary) ---
       - name: Set up QEMU (for ARM64 emulation)
+        if: steps.check_image.outputs.should_build == 'true'
         uses: docker/setup-qemu-action@v3
 
-      # CORRECTION: docker/ au lieu de actions/
       - name: Set up Docker Buildx
+        if: steps.check_image.outputs.should_build == 'true'
         uses: docker/setup-buildx-action@v3
 
-      # Login to dhi.io (Hardened Images) - Utilise dhi.io pour corriger l'erreur 401
       - name: Login to dhi.io (Hardened Images)
+        if: steps.check_image.outputs.should_build == 'true'
         uses: docker/login-action@v3
         with:
           registry: dhi.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      # Login to Docker Hub
       - name: Login to Docker Hub
+        if: steps.check_image.outputs.should_build == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      # Login to GitHub Container Registry
       - name: Log in to GitHub Container Registry
+        if: steps.check_image.outputs.should_build == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      # Build and push the multi-arch image
+      # --- STEP D: Build and Push ---
       - name: Build and push multi-arch image
+        if: steps.check_image.outputs.should_build == 'true'
         uses: docker/build-push-action@v5
-        
         env:
-          TAG_VALUE: ${{ github.event.client_payload.tag_name || github.event.inputs.tag || 'latest' }}
-        
+          TAG_VALUE: ${{ steps.get_version.outputs.tag }}
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          
           build-args: |
             AGH_VERSION=${{ env.TAG_VALUE }}
-            
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:${{ env.TAG_VALUE }}
             ghcr.io/imthai/adguardhome-unbound-redis:${{ env.TAG_VALUE }}
