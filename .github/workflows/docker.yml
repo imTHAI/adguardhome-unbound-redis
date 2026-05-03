@@ -9,7 +9,7 @@ on:
         required: false
         default: ''
 
-  # 2. The NAS replacement: automatic check every 6 hours
+  # 2. Automatic check every 6 hours
   schedule:
     - cron: '0 */6 * * *'
 
