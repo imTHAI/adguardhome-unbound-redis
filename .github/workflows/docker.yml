@@ -16,6 +16,7 @@ on:
 jobs:
   check-and-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 120 # QEMU (ARM64) is slow, providing extra time to avoid timeouts
     
     steps:
       - name: Checkout code
@@ -25,23 +26,24 @@ jobs:
       - name: Get latest AdGuardHome release
         id: get_version
         run: |
-          # If triggered manually with a tag, use it. Otherwise, query the GitHub API
           if [ "${{ github.event.inputs.tag }}" != "" ]; then
             echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
             echo "Using manual tag: ${{ github.event.inputs.tag }}"
           else
-            # Fetch the stable release (GitHub natively excludes pre-releases/betas here)
-            LATEST_TAG=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
+            # Use GITHUB_TOKEN to avoid rate limiting on the GitHub API
+            LATEST_TAG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
             echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
             echo "Latest upstream tag is: $LATEST_TAG"
           fi
 
-      # --- STEP B: State verification (does the image already exist?) ---
+      # --- STEP B: State verification (Check if image already exists) ---
       - name: Check if image already exists on Docker Hub
         id: check_image
         run: |
-          # Ask Docker Hub if this version has already been pushed
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis/tags/${{ steps.get_version.outputs.tag }})
+          # Query Docker Hub API for the specific tag
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis/tags/${{ steps.get_version.outputs.tag }})
           
           if [ "$HTTP_STATUS" -eq 200 ]; then
             echo "Image ${{ steps.get_version.outputs.tag }} already exists. Canceling build."
@@ -51,7 +53,7 @@ jobs:
             echo "should_build=true" >> $GITHUB_OUTPUT
           fi
 
-      # --- STEP C: Environment preparation (Only if build is necessary) ---
+      # --- STEP C: Environment preparation (Only if build is required) ---
       - name: Set up QEMU (for ARM64 emulation)
         if: steps.check_image.outputs.should_build == 'true'
         uses: docker/setup-qemu-action@v3
@@ -83,22 +85,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      # --- STEP D: Build and Push ---
+      # --- STEP D: Multi-Arch Build and Push ---
       - name: Build and push multi-arch image
         if: steps.check_image.outputs.should_build == 'true'
         uses: docker/build-push-action@v5
-        env:
-          TAG_VALUE: ${{ steps.get_version.outputs.tag }}
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          # Direct injection of the AdGuard version tag
+          build-args: |
+            AGH_VERSION=${{ steps.get_version.outputs.tag }}
+          # Use GHA cache to speed up subsequent builds
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            AGH_VERSION=${{ env.TAG_VALUE }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:${{ env.TAG_VALUE }}
-            ghcr.io/imthai/adguardhome-unbound-redis:${{ env.TAG_VALUE }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:${{ steps.get_version.outputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/adguardhome-unbound-redis:${{ steps.get_version.outputs.tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:latest
-            ghcr.io/imthai/adguardhome-unbound-redis:latest
+            ghcr.io/${{ github.repository_owner }}/adguardhome-unbound-redis:latest
