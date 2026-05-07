@@ -41,18 +41,30 @@ jobs:
       - name: Check if image already exists on Docker Hub
         id: check_image
         run: |
-          # Use -L to follow redirects and add trailing slash for reliable API response
-          HTTP_STATUS=$(curl -s -o /dev/null -L -w "%{http_code}" \
-            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis/tags/${{ steps.get_version.outputs.tag }}/")
-          
-          echo "Docker Hub API status: $HTTP_STATUS"
-          
+          TAG="${{ steps.get_version.outputs.tag }}"
+          REPO="${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis"
+
+          # Get anonymous pull token from Docker Hub auth service
+          TOKEN=$(curl -s \
+            "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${REPO}:pull" \
+            | jq -r '.token')
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+            "https://registry-1.docker.io/v2/${REPO}/manifests/${TAG}")
+
+          echo "Registry API status: $HTTP_STATUS"
+
           if [ "$HTTP_STATUS" -eq 200 ]; then
-            echo "Image ${{ steps.get_version.outputs.tag }} already exists. Skipping build."
+            echo "Image ${TAG} already exists. Skipping build."
             echo "should_build=false" >> $GITHUB_OUTPUT
-          else
-            echo "New version detected or tag not found ($HTTP_STATUS). Starting build."
+          elif [ "$HTTP_STATUS" -eq 404 ]; then
+            echo "Image ${TAG} not found. Starting build."
             echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "Unexpected status $HTTP_STATUS — skipping build."
+            echo "should_build=false" >> $GITHUB_OUTPUT
           fi
 
       # --- STEP C: Environment preparation (Only if build is required) ---
