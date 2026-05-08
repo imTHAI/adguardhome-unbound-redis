@@ -16,6 +16,8 @@ on:
 jobs:
   check-and-build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     timeout-minutes: 120 # QEMU (ARM64) is slow, providing extra time to avoid timeouts
     
     steps:
