@@ -102,6 +102,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       
       # --- STEP D: Multi-Arch Build and Push ---
+      
+      # Convert repository owner string to lowercase for GHCR compliance
+      - name: Set lowercase repository owner
+        if: steps.check_image.outputs.should_build == 'true'
+        run: |
+          echo "REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      # Build and push Docker image with dynamic repository owner
       - name: Build and push multi-arch image
         if: steps.check_image.outputs.should_build == 'true'
         uses: docker/build-push-action@v5
@@ -115,6 +123,6 @@ jobs:
           cache-to: type=gha,mode=max
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:${{ steps.get_version.outputs.tag }}
-            ghcr.io/${{ github.repository_owner }}/adguardhome-unbound-redis:${{ steps.get_version.outputs.tag }}
+            ghcr.io/${{ env.REPO_OWNER }}/adguardhome-unbound-redis:${{ steps.get_version.outputs.tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/adguardhome-unbound-redis:latest
-            ghcr.io/${{ github.repository_owner }}/adguardhome-unbound-redis:latest
+            ghcr.io/${{ env.REPO_OWNER }}/adguardhome-unbound-redis:latest
