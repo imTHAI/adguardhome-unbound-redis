@@ -27,6 +27,8 @@ jobs:
       # --- STEP A: Version detection ---
       - name: Get latest AdGuardHome release
         id: get_version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event.inputs.tag }}" != "" ]; then
             echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
