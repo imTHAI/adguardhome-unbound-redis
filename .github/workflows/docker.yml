@@ -32,9 +32,11 @@ jobs:
             echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
             echo "Using manual tag: ${{ github.event.inputs.tag }}"
           else
-            # Use GITHUB_TOKEN to avoid rate limiting on the GitHub API
-            LATEST_TAG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
+            LATEST_TAG=$(gh release view --repo AdguardTeam/AdGuardHome --json tagName -q .tagName)
+            if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
+              echo "Failed to resolve upstream tag"
+              exit 1
+            fi
             echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
             echo "Latest upstream tag is: $LATEST_TAG"
           fi
