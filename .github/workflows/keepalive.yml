@@ -1,0 +1,44 @@
+name: Keep Repository Active
+
+# GitHub auto-disables scheduled workflows (docker.yml's cron trigger) after
+# 60 days with zero commits on the repo — running the workflow itself does
+# NOT count as activity, only a real commit does. This job checks weekly and,
+# only once the repo is actually approaching that threshold, makes a trivial
+# commit to reset GitHub's clock. Runs at most a few times a year in practice.
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Commit heartbeat if repo is nearing the 60-day inactivity cutoff
+        run: |
+          LAST_COMMIT_EPOCH=$(git log -1 --format=%ct)
+          NOW_EPOCH=$(date +%s)
+          DAYS_SINCE=$(( (NOW_EPOCH - LAST_COMMIT_EPOCH) / 86400 ))
+          echo "Days since last commit: $DAYS_SINCE"
+
+          # Threshold well under GitHub's 60-day cutoff so weekly runs never
+          # risk missing the window even if a run gets skipped.
+          if [ "$DAYS_SINCE" -lt 45 ]; then
+            echo "Repository already active enough — nothing to do."
+            exit 0
+          fi
+
+          mkdir -p .github
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/.keepalive
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/.keepalive
+          git commit -m "chore: keepalive commit to prevent scheduled workflow disablement"
+          git push
